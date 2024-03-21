@@ -11,7 +11,6 @@ tab_post
 plot(-10, xlim = c(0,10), ylim = c(0, 2250))
 for(i in 0:10) lines(c(i,i), c(0,tab_post[i+1]), lwd = 4, col = 4)
 
-
 #grid approximation of the posterior for the globe tossing problem
 
 # define grid
