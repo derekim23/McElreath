@@ -379,3 +379,60 @@ plot(height~weight, d2, col = col.alpha(rangi2,.5))
 lines(weight.seq, mu.mean)
 
 shade(height.PI, weight.seq)
+
+
+#########
+#Splines#
+#########
+library(rethinking)
+data(cherry_blossoms)
+d <- cherry_blossoms
+precis(d)
+?cherry_blossoms
+
+plot(d$doy, d$year)
+
+
+d2 <- d[ complete.cases(d$doy) , ] # complete cases on doy
+num_knots <- 15
+knot_list <- quantile( d2$year , probs=seq(0,1,length.out=num_knots) )
+
+library(splines)
+B <- bs(d2$year, knots = knot_list[-c(1,num_knots)], degree = 3, intercept = T)
+#There is basis function for each row
+
+dim(B)
+
+#plot basis functions
+plot(NULL, xlim = range(d2$year), ylim = c(0,1), xlab = 'year', ylab = 'basis')
+for (i in 1:ncol(B)){lines(d2$year, B[,i])}
+length(seq(0,1,length.out=num_knots))
+
+#Regression
+m4.7 <- quap(
+  alist(
+    D ~ dnorm(mu, sigma),
+    mu <- a + B %*% w,
+    a ~ dnorm(100, 10),
+    w ~ dnorm(0, 10), #notice how weights can be negative w/ abs val > 1
+    sigma ~ dexp(1)),
+  data = list(D= d2$doy, B = B),
+  start = list(w=rep(0,ncol(B))))
+
+precis(m4.7) #we don't see the weights
+
+#Try extracting the MAP for the weights and draw out the associated bases
+post <-  extract.samples(m4.7)
+w <- apply(post$w,2,mean)
+plot(NULL, xlim = range(d2$year), ylim = c(-6,6), xlab = 'year', 
+     ylab = 'basis * weight')
+for (i in 1:ncol(B)){
+  lines(d2$year, w[i] * B[,i])
+}
+
+#97% posterior 
+mu <- link(m4.7)
+mu_PI <- apply(mu, 2, PI, .97)
+plot(d2$year, d2$doy, col = col.alpha(rangi2, 0.3),  pch = 16)
+shade(mu_PI, d2$year, col = col.alpha('black',0.5))
+
