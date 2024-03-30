@@ -14,8 +14,6 @@ data(Howell1)
 
 d <- Howell1[Howell1$age>=18,]
 
-
-
 library(rethinking)
 
 H <- runif(10, 130, 170)
@@ -235,7 +233,7 @@ for(i in 1:N) curve(a[i] + b[i]*(x-xbar), from = min(d2$weight),
 m4.3 <- quap(
   alist(
     height ~ dnorm(mu, sigma),
-    mu <-  a + b * (weight - xbar),
+    mu <-  a + b * (weight-xbar),
     a ~dnorm(178, 20),
     b ~ dlnorm(0, 1),
     sigma ~ dunif(0, 50)
@@ -261,7 +259,7 @@ N <- 100
 dN <- d2[1:N,]
 mN <- quap(alist(
   height ~ dnorm(mu, sigma),
-  mu <- a + b * (weight - mean(weight)),
+  mu <- a + b * (weight),
   a ~ dnorm(178,20),
   b~ dlnorm(0, 1),
   sigma ~ dunif(0, 50)
@@ -274,7 +272,7 @@ plot(dN$weight, dN$height, xlim = range(dN$weight), ylim = range(dN$height),
 mtext(concat("N = ", N))
 
 for (i in 1:100){
-  curve(post$a[i] + post$b[i] * (x - mean(dN$weight)),
+  curve(post$a[i] + post$b[i] * (x),
         col = col.alpha('black', 0.3), add = T)
 }
 
@@ -392,21 +390,25 @@ precis(d)
 
 plot(d$doy, d$year)
 
-
-d2 <- d[ complete.cases(d$doy) , ] # complete cases on doy
+d2 <- d[complete.cases(d$doy), ] # complete cases on doy
 num_knots <- 15
 knot_list <- quantile( d2$year , probs=seq(0,1,length.out=num_knots) )
 
 library(splines)
 B <- bs(d2$year, knots = knot_list[-c(1,num_knots)], degree = 3, intercept = T)
 #There is basis function for each row
-
 dim(B)
+
+?bs
+B
 
 #plot basis functions
 plot(NULL, xlim = range(d2$year), ylim = c(0,1), xlab = 'year', ylab = 'basis')
 for (i in 1:ncol(B)){lines(d2$year, B[,i])}
 length(seq(0,1,length.out=num_knots))
+
+plot(NULL, xlim = range(d2$year), ylim = c(0,1), xlab = 'year', ylab = 'basis')
+for (i in 1:ncol(B)){lines(d2$year, B[,i])}
 
 #Regression
 m4.7 <- quap(
@@ -436,3 +438,8 @@ mu_PI <- apply(mu, 2, PI, .97)
 plot(d2$year, d2$doy, col = col.alpha(rangi2, 0.3),  pch = 16)
 shade(mu_PI, d2$year, col = col.alpha('black',0.5))
 
+
+#Another look at bs function
+x <- seq(1,5, len=100)
+a1 <- bs(x, knots = 3, intercept = T)
+matplot(x, a1)
