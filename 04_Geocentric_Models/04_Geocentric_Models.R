@@ -277,7 +277,7 @@ for (i in 1:100){
 }
 
 
-#Try plotting uncertainty around a point estimte
+#Try plotting uncertainty around a point estimate
 post <- extract.samples( m4.3 )
 mu_at_50 <- post$a + post$b * ( 50 - xbar )
 
@@ -338,7 +338,6 @@ mu.mean <- apply(mu, 2, mean)
 mu.CI <-  apply(mu, 2, PI, prob = .89)
 
 shade(mu.CI, weight.seq)
-
 
 #We've only simulated randomness of mu and not sigma itself despite 
 #having used extract.samples
