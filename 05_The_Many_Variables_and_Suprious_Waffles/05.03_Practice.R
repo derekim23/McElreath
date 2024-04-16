@@ -59,7 +59,7 @@ mod3 <- lm(D ~ M + A,data = d)
 summary(mod3)
 #It does seem M is independent of D conditioned on A,
 #at least based on the linear models.
-#Buy is this true in the Bayesian sense?
+#But is this true in the Bayesian sense?
 
 m5h1 <- quap(alist(
   D~dnorm(mu, sigma),
@@ -83,6 +83,92 @@ m5h2 <- quap(alist(
 precis(m5h2)
 #M now has a negative effect but almost close to zero
 
-post <- extract.samples(m5h2)
-cor(post$bM , post$bA)
-link(m5h2, data = )
+#Wouldn't it be also convincing to check the model fit between
+#the residuals after regressing D on A
+#and M?
+
+mod <- lm(D~A, data = d)
+mod2 <- lm(mod$residuals~d$M)
+summary(mod2)
+#Confirmation.
+
+
+
+
+#5H2
+xseq <- seq(from = min(d$A) - 0.15, to = max(d$M) + 0.15, length.out = 30)
+#Let's check CA
+d$Marriage[d$Loc == 'CA']
+#Say CA's rate is halved:
+d$M2 <- d$Marriage
+d$M2[d$Loc == 'CA'] = d$M2[d$Loc == 'CA']/2 
+d$M2 <- standardize(d$M2)
+
+mu <- link(m5h2, data = data.frame(A=xseq, M = d$M[d$Loc == 'CA']))
+mu_c <- link(m5h2, data = data.frame(A=xseq, M = d$M2[d$Loc == 'CA']))
+mu_mean <- apply(mu,2,mean)
+mu_PI <- apply(mu, 2, PI)
+mu_c_mean <- apply(mu_c,2,mean)
+mu_c_PI <- apply(mu_c, 2, PI)
+plot(NULL, xlim = range(d$A), ylim=range(d$D))
+lines(xseq, mu_mean, lwd=2)
+lines(xseq, mu_c_mean, lwd=2, lty = 2, col = rangi2)
+shade(mu_PI, xseq)
+shade(mu_c_PI, xseq, col= col.alpha(rangi2,0.3))
+#Interestingly, a lower marriage rate implies higher 
+#divorce rates?
+
+#Doesn't seem quite right, so I referred to a solution I found
+#here: https://www.youtube.com/watch?v=s_k1UPJwVGo.
+#The idea is to model M->A->D sequentially.
+
+m5h2 <- quap(alist(
+  A ~ dnorm(muA, sigmaA),
+  muA <- aA + bMA * M,
+  aA ~ dnorm(0, 0.2),
+  bMA ~ dnorm(0, 0.5),
+  sigmaA ~ dexp(1),
+  
+  D ~ dnorm(muD, sigmaD),
+  muD <- aD + bAD * A,
+  aD ~ dnorm(0, 0.2),
+  bAD ~ dnorm(0, 0.5),
+  sigmaD ~ dexp(1)
+), data = d)
+
+precis(m5h2)
+
+#Since we expect marriage rates to 'positively' affect
+#divorce rates, let's see if bMA * bAD is positive.
+#And indeed, it is according to the above output.
+
+mu_M <- mean(d$Marriage)
+half_mu_M <- mu_M/2
+half_mu_M_std <- (half_mu_M - mu_M)/sd(d$Marriage)
+
+M_half <- c(0, half_mu_M_std) #We're contrasting between
+#the mean marriage rate across all sates vs. half of that.
+
+m5h2_sim_half <- sim(m5h2, data= data.frame(M=M_half), vars = c("A", "D"))
+diff <- m5h2_sim_half$D[,2] - m5h2_sim_half$D[,1]
+mu_diff <- mean(diff)
+
+
+mu_diff * sd(d$Divorce) #so, roughly a -1.2% impact on avg
+#by reducing the avg marriage rate by half.
+
+M_seq <-seq(from = -3, to = 3, length.out = 100)
+m5h2_sim <- sim(m5h2, data = data.frame(M = M_seq), 
+                vars = c("A", "D"))
+
+mu_D <- colMeans(m5h2_sim$D)
+
+plot(mu_D ~ M_seq, type = 'l', main = "M->A->D Counterfactual",
+     ylab = 'D', xlab = 'M')
+HDPI_D <- apply(m5h2_sim$D,2,HPDI)
+shade(HDPI_D, M_seq)
+abline(h = mu_diff, col = rangi2)
+abline(v = half_mu_M_std, col = rangi2)
+
+
+#5H3
