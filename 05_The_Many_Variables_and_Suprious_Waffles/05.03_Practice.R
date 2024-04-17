@@ -172,3 +172,73 @@ abline(v = half_mu_M_std, col = rangi2)
 
 
 #5H3
+data(milk)
+d <- milk
+d$K <- standardize(d$kcal.per.g)
+d$M <- standardize(d$mass)
+d$N <- standardize(d$neocortex.perc)
+dcc <- d[complete.cases(d$K, d$N, d$M),]
+
+m5h3 <- quap(alist(
+  N <- dnorm(muN, sigmaN),
+  muN <- aN + bNM * M,
+  aN ~ dnorm(0, 0.2),
+  bNM ~ dnorm(0, 0.5),
+  sigmaN ~ dexp(1),
+  
+  K <- dnorm(muK, sigmaK),
+  muK <- aK + bMK * M + bNK * N,
+  aK ~ dnorm(0, 0.2),
+  bMK ~ dnorm(0, 0.5),
+  bNK ~ dnorm(0, 0.5),
+  sigmaK ~ dexp(1)
+), data = dcc)
+
+M_seq <- seq(from = -3, to = 3, length.out = 100)
+mC <- sim(m5h3, data.frame(M = M_seq), vars = c("N", "K"))
+str(mC)
+
+par(mfrow=c(1,2))
+
+
+#First, let's visualize how M impacts N and M impacts K 
+#through N and also directly
+
+means_N <- colMeans(mC$N)
+HPDIs_N <- apply(mC$N, 2, HPDI)
+
+plot(means_N ~ M_seq, type = 'l', main = "M->N Counterfactual Plot", ylab = 'N',
+     xlab = 'M')
+shade(HPDIs_N, M_seq)
+
+means_K <- colMeans(mC$K)
+HPDIs_K <- apply(mC$K, 2, HPDI)
+
+plot(means_K ~ M_seq, type = 'l', main = "M->N->K Counterfactual Plot", ylab = 'K',
+     xlab = 'M')
+
+shade(HPDIs_K, M_seq)
+
+#Now, try doubling the mean of M (mass)
+mean_Mass <- mean(dcc$mass)
+twice_mass <- mean_Mass * 2
+twice_std <- (twice_mass - mean_Mass) / sd(dcc$mass)
+
+twice_std
+
+M_twice <- c(0, twice_std)
+
+mC2 <- sim(m5h3, data=data.frame(M=M_twice), vars=c('N', 'K'))
+diff <- mC2$K[,2] - mC2$K[,1]
+
+(mean_diff <- mean(diff))
+
+dev.off()
+plot(means_K ~ M_seq, type = 'l', main = "M->N->K Counterfactual Plot", ylab = 'K',
+     xlab = 'M')
+shade(HPDIs_K, M_seq)
+
+abline(v=twice_std)
+abline(h=mean_diff)
+
+sd(dcc$mass) * mean_diff
