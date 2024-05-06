@@ -260,3 +260,124 @@ for (i in 1:2){
 
 
 #7H4
+d <- sim_happiness(seed=1977,N_years = 1000)
+precis(d)
+
+d2 <- d[d$age>17,]
+d2$A <- (d2$age-18)/(65-18) #0 to 1 normalization
+
+d2$mid <- d2$married+1
+
+m6.9 <- quap(alist(
+  happiness~dnorm(mu, sigma),
+  mu <- a[mid] + bA * A,
+  a[mid] ~ dnorm(0, 1),
+  bA ~ dnorm(0,2),
+  sigma ~ dexp(1)
+), data = d2)
+
+precis(m6.9) #age is negatively associated w/ happiness
+#controlling for marriage
+
+m6.10 <- quap(alist(
+  happiness ~ dnorm(mu, sigma),
+  mu <- a + bA * A,
+  a ~ dnorm(0,1),
+  bA ~ dnorm(0,2),
+  sigma ~ dexp(1)
+), data = d2)
+
+compare(m6.9, m6.10, func = WAIC)
+#m6.9 makes better predictions
+#but m6.10 is the causally more plausible model
+#and is actually the causally correct model given the
+#data generation process.
+#Because we have H -> M and A -> H and A -> M
+# we have that H leads to M,
+# stratifying the population by M
+# would make it much easier to tell apart happy ones
+# from less happy ones.
+
+#Age on the other hand has only a minute impact on H
+#so, including M results in a better prediction
+#despite the wrong causal direction.
+
+#However, M is a collider, and is cuased by H not 
+#the other way around. The correct way is to
+#infer the causal impact of A on H.
+
+#7H5
+data(foxes)
+df <- foxes
+df$g <- standardize(df$groupsize)
+df$f <- standardize(df$avgfood)
+df$a <- standardize(df$area)
+df$w <- standardize(df$weight)
+
+m_afg <- quap(alist(
+  w ~ dnorm(mu, sigma),
+  mu <- b + bg * g + bf * f + ba * a,
+  c(bg,bf,ba) ~ dnorm(0, 0.5),
+  b ~ dnorm(0, 0.2),
+  sigma ~ dexp(1)
+), data =  df)
+
+m_fg <- quap(alist(
+  w ~ dnorm(mu, sigma),
+  mu <- b + bg * g + bf * f,
+  c(bg,bf) ~ dnorm(0, 0.5),
+  b ~ dnorm(0, 0.2),
+  sigma ~ dexp(1)
+), data =  df)
+
+m_ga <- quap(alist(
+  w ~ dnorm(mu, sigma),
+  mu <- b + bg * g  + ba * a,
+  c(bg,bf,ba) ~ dnorm(0, 0.5),
+  b ~ dnorm(0, 0.2),
+  sigma ~ dexp(1)
+), data =  df)
+
+m_f <- quap(alist(
+  w ~ dnorm(mu, sigma),
+  mu <- b +  bf * f,
+  c(bg,bf,ba) ~ dnorm(0, 0.5),
+  b ~ dnorm(0, 0.2),
+  sigma ~ dexp(1)
+), data =  df)
+
+
+m_a <- quap(alist(
+  w ~ dnorm(mu, sigma),
+  mu <- b +  ba * a,
+  c(bg,bf,ba) ~ dnorm(0, 0.5),
+  b ~ dnorm(0, 0.2),
+  sigma ~ dexp(1)
+), data =  df)
+
+
+compare(m_afg, m_fg, m_ga, m_f, m_a, func = WAIC)
+
+data(foxes)
+dag6h3 <- dagitty('dag{
+    a->f
+    f->g
+    g->w
+    f->w
+        }')
+
+coordinates(dag6h3) <- list(
+  x= c(a = 0, g = 1, w = 0.5, a = 0.5),
+  y = c(a = 0, g = 0, w = 1, a = -1)
+)
+
+drawdag(dag6h3)
+
+#given this dag, both g and f impact w
+#but a has no association with w conditioned on f.
+
+#So, it makes sense that m_afg and m_fg have roughly the same
+#WAIC.
+
+#m_f and m_a are also similar, because the total causal 
+#impact of a goes through f.
