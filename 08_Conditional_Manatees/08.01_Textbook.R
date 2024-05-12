@@ -93,3 +93,30 @@ precis(m8.3, depth = 2)
 compare(m8.1,m8.2,m8.3,func=PSIS)
 #model 8.3 has more than 95% of the weight.
 
+plot(PSIS(m8.3, pointwise = T)$k)
+
+d.A1 <- dd[dd$cid == 1,]
+plot(d.A1$rugged_std,d.A1$log_gdp_std,pch=16, col = rangi2,
+     xlab = 'ruggedness (standardized)',
+     ylab = 'log gdp (as a prop of the mean)',
+     xlim = c(0,1))
+mu <- link(m8.3, data = data.frame(rugged_std =
+                                     rugged_seq, cid =1))
+mu_mean <- apply(mu,2,mean)
+mu_HPDI <- apply(mu,2,HPDI,prob = .95)
+lines(rugged_seq, mu_mean, lwd = 2)
+shade(mu_HPDI, rugged_seq)
+mtext('African Nations')
+
+d.A2 <- dd[dd$cid == 2,]
+plot(d.A2$rugged_std,d.A2$log_gdp_std,pch=16, col = rangi2,
+     xlab = 'ruggedness (standardized)',
+     ylab = 'log gdp (as a prop of the mean)',
+     xlim = c(0,1))
+mu <- link(m8.3, data = data.frame(rugged_std =
+                                     rugged_seq, cid =2))
+mu_mean <- apply(mu,2,mean)
+mu_HPDI <- apply(mu,2,HPDI,prob = .95)
+lines(rugged_seq, mu_mean, lwd = 2)
+shade(mu_HPDI, rugged_seq)
+mtext('Non-African Nations')
