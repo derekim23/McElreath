@@ -107,6 +107,8 @@ mu_HPDI <- apply(mu,2,HPDI,prob = .95)
 lines(rugged_seq, mu_mean, lwd = 2)
 shade(mu_HPDI, rugged_seq)
 
+dim(mu_HPDI)
+
 mtext('African Nations')
 
 d.A2 <- dd[dd$cid == 2,]
